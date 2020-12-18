@@ -104,6 +104,13 @@ $ python train.py --help
 ## Result
 The following are some results.
 
+| Original | Style | Output |
+| ------------- | ------------- | -------------  |
+|![image](./content/houses.jpg)  | ![image](./style/sketch.png) | ![image](./outputs/houses_stylized_sketch.jpg) |
+| | ![image](./style/mondrian.jpg) | ![image](./outputs/houses_stylized_mondrian.jpg)|
+| | ![image](./style/asheville.jpg) | ![image](./outputs/houses_stylized_asheville.jpg)|
+
+
 ## References
 * [1]: X. Huang and S. Belongie. "[Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization](https://arxiv.org/abs/1703.06868)", in ICCV, 2017.
 * [2]: [Pytorch AdaIN](https://github.com/naoto0804/pytorch-AdaIN)
