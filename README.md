@@ -3,6 +3,14 @@ This is an unofficial PyTorch implementation of [Arbitrary Style Transfer in Rea
 Adaptive Instance Normalization [Huang, Belongie ICCV2017]](https://arxiv.org/abs/1703.06868).
 Original implementation in lua can be found [here](https://github.com/xunhuang1995/AdaIN-style).
 
+This paper proposes a very  effective approach that for the first time enables *arbitrary* style transfer in real-time, 
+ in contrast to [a single style](https://arxiv.org/abs/1603.03417) or [32 styles](https://arxiv.org/abs/1610.07629). 
+The original algorithm runs at 15 FPS with 512x512 images on a Pascal Titan X, and is around 720x 
+speedup compared with the [original algorithm](https://arxiv.org/abs/1508.06576) of Gatys et al., 
+without sacrificing any flexibility. 
+In essence, this model uses a novel adaptive instance normalization (AdaIN) layer, which is similar to
+ [instance normalization](https://arxiv.org/abs/1701.02096)  that aligns the
+mean and variance of the content features with those of the style features. 
 
 ![Architecture](./architecture.jpg)
 
