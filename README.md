@@ -124,5 +124,6 @@ The following are some results.
 * [1]: X. Huang and S. Belongie. "[Arbitrary Style Transfer in Real-time with Adaptive Instance Normalization](https://arxiv.org/abs/1703.06868)", in ICCV, 2017.
 * [2]: [Torch implementation of AdaIN](https://github.com/xunhuang1995/AdaIN-style)
 * [3]: [AdaIN Style Transfer](https://github.com/naoto0804/pytorch-AdaIN)
-* [4]: [MS-COCO Dataset](http://cocodataset.org/#download)
-* [5]: [K. Nichol. Painter by numbers, wikiart. 2016. 5](https://www.kaggle.com/c/painter-by-numbers)
+* [4]: [AdaIN in Chainer](https://github.com/SerialLain3170/ImageStyleTransfer/tree/master/AdaIN)
+* [5]: [MS-COCO Dataset](http://cocodataset.org/#download)
+* [6]: [K. Nichol. Painter by numbers, wikiart. 2016. 5](https://www.kaggle.com/c/painter-by-numbers)
