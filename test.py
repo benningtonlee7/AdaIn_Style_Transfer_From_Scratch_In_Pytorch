@@ -71,8 +71,7 @@ def main():
     else:
         style_dir = Path(args.style_dir)
         styles = list(style_dir.glob('**/*.*'))
-    print(contents)
-    print(styles)
+
     # If interpolation weights are provided, combine style images with weights
     if args.interpolation_weights:
         assert len(styles) == len(

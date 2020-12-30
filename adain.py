@@ -119,7 +119,6 @@ class AdaIN(nn.Module):
 
         # return image if not in training mode
         if not self.training:
-            print("testing")
             return output_img
 
         # Get the features of the output
