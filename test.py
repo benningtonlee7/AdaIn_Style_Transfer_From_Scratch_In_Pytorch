@@ -6,16 +6,23 @@ from pathlib import Path
 from PIL import Image
 from torchvision.utils import save_image
 from utils import color_control
-import glob
 from adain import load_AdaIN
 
 
 def main():
     parser = argparse.ArgumentParser(description='AdaIN Style Transfer Testing Script')
 
-    # Required
-    parser.add_argument('-c', '--content', type=str, required=True, metavar='<file>', nargs='+', help='Content image file')
-    parser.add_argument('-s', '--style', type=str, required=True, metavar='<file>', nargs='+', help='Color image file')
+    # Required parameters
+    # Content images or folder that contains content images, mutually exclusive
+    content_group = parser.add_mutually_exclusive_group(required=True)
+    content_group.add_argument('-c', '--content', type=str, metavar='<file>', nargs='+', help='Content image file(s)')
+    content_group.add_argument('-cd', '--content-dir', type=str, metavar='<dir>', help='Directory with content images')
+
+    # Style images or folder that contains style images, also mutually exclusive
+    style_group = parser.add_mutually_exclusive_group(required=True)
+    style_group.add_argument('-s', '--style', type=str, metavar='<file>', nargs='+', help='Style image file(s)')
+    style_group.add_argument('-sd', '--style-dir', type=str, metavar='<dir>', help='Directory with style images')
+
     parser.add_argument('-m', '--model', type=str, required=True, metavar='<pth>', help='Trained AdaIN Transfer model')
 
     # Optional arguments
@@ -34,9 +41,12 @@ def main():
     # Advanced options
     parser.add_argument('--alpha', type=float, metavar='<float>', default=1.0,
                         help='Option for degree of stylization, should be between 0 and 1, default=1.0')
-    parser.add_argument('--preserve-color', action='store_true',
-                                help='Option for preserving color of the content images')
-
+    # Preserve color of the content or have weights for the style images.
+    advanced_group = parser.add_mutually_exclusive_group()
+    advanced_group.add_argument('--preserve-color', action='store_true',
+                                help='Preserving color in generated images')
+    advanced_group.add_argument('--interpolation-weights', type=int, metavar='<int>', nargs='+',
+                                help='Weights of style images for interpolation')
     args = parser.parse_args()
 
     # Enable GPU when it's avaiable
@@ -51,18 +61,34 @@ def main():
     if args.content:
         contents = [Path(c) for c in args.content]
     else:
-        contents = glob.glob(args.content_dir+'**/*.*')
+        content_dir = Path(args.content_dir)
+        contents = list(content_dir.glob('**/*.*'))
 
     assert args.style or args.style_dir, "Please provide a style image or a directory that has style image(s)"
     # Path to style images
     if args.style:
         styles = [Path(s) for s in args.style]
     else:
-        styles = glob.glob(args.style_dir+'**/*.*')
+        style_dir = Path(args.style_dir)
+        styles = list(style_dir.glob('**/*.*'))
+    print(contents)
+    print(styles)
+    # If interpolation weights are provided, combine style images with weights
+    if args.interpolation_weights:
+        assert len(styles) == len(
+            args.interpolation_weights), 'All style images should be weighted. {} images are given while {} weights are given.'.format(
+            len(styles), len(args.interpolation_weights))
+        interpolation = True
+        weights_sum = sum(args.interpolation_weights)
+        interpolation_weights = [w / weights_sum for w in args.interpolation_weights]  # Normalize
+        interpolation_weights = torch.tensor(interpolation_weights)
+        interpolation_weights = interpolation_weights.to(device)
+    else:
+        interpolation = False
 
     # Test transforms
-    content_transform = test_transform(args.content_size, args.crop)
-    style_transform = test_transform(args.style_size, args.crop)
+    content_transform = test_transform(args.content_size, args.crop or interpolation)
+    style_transform = test_transform(args.style_size, args.crop or interpolation)
 
     # Load the trained model
     model = load_AdaIN(args.model)
@@ -70,33 +96,49 @@ def main():
     model.decoder.eval()
     model.encoder.eval()
     model.eval()
-    # For all content images (one content image, N style image)
-    total, iteration = len(contents) * len(styles), 0
+    # If interpolation with N content imgs and M style imgs, output N imgs, else output N*M imgs
+    total, iteration = len(contents)*(1 if interpolation else len(styles)), 0
     for content_path in contents:
-
-        # Process one content img and one style img
-        for style_path in styles:
+        if interpolation:
             iteration += 1
-            print('[{}/{}] Content image: {}, Style image: {}'.format(iteration, total, content_path, style_path))
-            # One content image
-            content = content_transform(Image.open(str(content_path)))
-            content = content.unsqueeze(0).to(device)
+            print('[{}/{}] Content: {}, Style: interpolation'.format(iteration, total, content_path))
 
-            # One style image
-            style = style_transform(Image.open(str(style_path))).to(device)
-            # Change the color of the style image to that of content image
-            if args.preserve_color:
-                style = color_control(style, content)
-            style = style.to(device).unsqueeze(0)
+            # Get style images and stack up them up as a batch
+            style = torch.stack([style_transform(Image.open(str(img))) for img in styles]).to(device)
+            # Get a content image
+            content = content_transform(Image.open(str(content_path))).unsqueeze(0).to(device)
 
-            # Generate a styled picture
+            # Generate a styled image with interpolated styles
             with torch.no_grad():
-                output = model(content, style, alpha=args.alpha)
-            output = denormalize(output[0],device).cpu()
+                output = model(content, style, interpolation_weights=interpolation_weights)
+            output = output.cpu()
 
             # Save the generated image
-            save_image(output,
-                       str(output_dir / '{}_stylized_{}{}'.format(content_path.stem, style_path.stem, args.ext)))
+            save_image(output, str(output_dir / '{}_interpolation{}'.format(content_path.stem, args.ext)))
+
+        else:
+            # Process one content img and one style img
+            for style_path in styles:
+                iteration += 1
+                print('[{}/{}] Content image: {}, Style image: {}'.format(iteration, total, content_path, style_path))
+                # One content image
+                content = content_transform(Image.open(str(content_path)))
+                content = content.unsqueeze(0).to(device)
+
+                # One style image
+                style = style_transform(Image.open(str(style_path))).to(device)
+                # Change the color of the style image to that of content image
+                if args.preserve_color:
+                    style = color_control(style, content)
+                style = style.to(device).unsqueeze(0)
+
+                # Generate a styled picture
+                with torch.no_grad():
+                    output = model(content, style, alpha=args.alpha)
+                output = denormalize(output[0],device).cpu()
+                # Save the generated image
+                save_image(output,
+                           str(output_dir / '{}_stylized_{}{}'.format(content_path.stem, style_path.stem, args.ext)))
 
 if __name__ == '__main__':
     main()

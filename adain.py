@@ -91,14 +91,25 @@ class AdaIN(nn.Module):
         for param in self.encoder.parameters():
             param.requires_grad = False
 
-    def forward(self, content, style, alpha=1.0):
+    def forward(self, content, style, alpha=1.0, interpolation_weights=None):
         assert 0 <= alpha <= 1, '"alpha" should be between 0 and 1.'
+        assert interpolation_weights is None or not self.training, 'Interpolation is available only in testing.'
 
         # Obtain the features from the content image and the style image
         f_content = self.encoder(content)[-1]
         f_style = self.encoder(style)
 
-        t = adain_layer(f_content, f_style[-1])  # Adaptive Normalization
+        if interpolation_weights is not None:
+            assert not self.training, 'Interpolation is available only in testing.'
+            # Combine the features of style images with interpolation weights
+            t = adain_layer(f_content.expand_as(f_style[-1]), f_style[-1])
+            og_shape = t.shape
+            t = torch.reshape(t, (t.shape[0], -1))
+            interpolation_weights = interpolation_weights.unsqueeze(1).expand_as(t)
+            t = torch.reshape(t * interpolation_weights, og_shape)
+            t = torch.sum(t, dim=0, keepdim=True)
+        else:
+            t = adain_layer(f_content, f_style[-1])  # Adaptive Normalization
 
         # Adjust the degree of style transformation
         t = (1 - alpha) * f_content + alpha * t
@@ -108,6 +119,7 @@ class AdaIN(nn.Module):
 
         # return image if not in training mode
         if not self.training:
+            print("testing")
             return output_img
 
         # Get the features of the output
@@ -115,7 +127,6 @@ class AdaIN(nn.Module):
 
         # calculate content loss, which is the Euclidean distance between
         # the content features (AdaIN output t) and the features of the output image
-        # loss_content = self.calculate_content_loss(f_output[-1], f_content)
         loss_content = self.calculate_content_loss(f_output[-1], t)
 
         # calculate style loss

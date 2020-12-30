@@ -67,6 +67,17 @@ $ python test.py \
 >    --content content/content.jpg \
 >    --style style/style.jpg
 ```
+
+### Interpolation
+To transfer one content image with two or more styles, specify the interpolation weights for all style images as follows:
+```
+$ python test.py \
+>    --model models/adain_model.pth \
+>    --content content/content.jpg \
+>    --style style/style1.jpg style/style2.jpg style/style3.jpg \
+>    --interpolation-weights 3 4 5
+```
+You should specify weights for all style images. All these weights will then be normalized automactially.
    
 ## Train
 
@@ -108,7 +119,7 @@ For more, type the following command:
 ```
 $ python train.py --help 
 ```
-
+ 
 ## Result
 The following are some results.
 
